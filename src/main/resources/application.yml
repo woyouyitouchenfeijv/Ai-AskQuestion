@@ -1,0 +1,25 @@
+# Server Configuration
+server:
+  port: 8080
+
+# Application Configuration
+spring:
+  application:
+    name:
+
+# AI Configuration
+ai:
+  # OpenAI API Configuration
+  openai:
+    #付费的
+    api-key: api-key
+    model-name: DeepSeek-R1-0528-Qwen3-8B
+    temperature: 0.6
+    max-tokens: 1000
+    timeout: 60
+    baseUrl: https://open.bigmodel.cn/api/paas/v4/
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.ai.askquestion: DEBUG
