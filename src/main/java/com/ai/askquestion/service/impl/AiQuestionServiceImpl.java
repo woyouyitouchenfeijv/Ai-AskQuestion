@@ -16,13 +16,12 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AiQuestionServiceImpl implements AiQuestionService {
 
     @Autowired
-    ChatLanguageModel chatLanguageModel;
+    ChatLanguageModel chatLanguageModel;//聊天模型
     @Autowired
-    Assistant assistant;
+    Assistant assistant;//rag配置，里面加了向量库等等
 
     /**
      * Ask a question to AI
@@ -33,11 +32,8 @@ public class AiQuestionServiceImpl implements AiQuestionService {
     @Override
     public AskQuestionResponse askQuestion(AskQuestionRequest request) {
         log.info("Received question: {}", request.getQuestion());
-
         String answer = chatLanguageModel.generate(request.getQuestion());
-
         log.info("Generated answer: {}", answer);
-
         return AskQuestionResponse.of(request.getQuestion(), answer);
     }
 
@@ -47,10 +43,7 @@ public class AiQuestionServiceImpl implements AiQuestionService {
         String chat = assistant.chat(questionRequest.getQuestion());
         long endTime = System.currentTimeMillis();
         log.info("耗时：{}",(endTime-startTime));
-        AskQuestionResponse response = new AskQuestionResponse();
-        response.setQuestion(questionRequest.getQuestion());
-        response.setAnswer(chat);
-        return response;
+        return AskQuestionResponse.of(questionRequest.getQuestion(),chat);
     }
 
 }

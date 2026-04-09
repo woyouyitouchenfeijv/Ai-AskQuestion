@@ -26,6 +26,7 @@ public class KnowledgeBaseConfig {
 
     /**
      * 1. 嵌入模型：将文本转为向量的工具（本地运行，无需API）
+     * EmbeddingModel  向量模型 负责把文本转换成向量
      */
     @Bean
     public EmbeddingModel embeddingModel() {
@@ -36,6 +37,7 @@ public class KnowledgeBaseConfig {
     /**
      * 2. 向量存储：先使用内存存储，重启后数据会丢失，适合测试
      *    生产环境可以换成 PostgreSQL + pgvector、ChromaDB、Redis等
+     * EmbeddingStore   向量模型 负责对向量进行保存、搜索
      */
     @Bean
     public EmbeddingStore<TextSegment> embeddingStore() {
@@ -44,6 +46,7 @@ public class KnowledgeBaseConfig {
 
     /**
      * 3. 文档摄入器：封装了整个"加载->分割->向量化->存储"的流水线
+     * EmbeddingStoreIngestor 文档->存储向量的工作流，入库流水线
      */
     @Bean
     public EmbeddingStoreIngestor embeddingStoreIngestor(
@@ -52,7 +55,9 @@ public class KnowledgeBaseConfig {
         return EmbeddingStoreIngestor.builder()
                 // 文档分割器：将长文档切成小块，每块500字符，重叠100字符（保持上下文连贯）
                 .documentSplitter(DocumentSplitters.recursive(500, 100))
+                //转成向量
                 .embeddingModel(embeddingModel)
+                //存储到库
                 .embeddingStore(embeddingStore)
                 .build();
     }

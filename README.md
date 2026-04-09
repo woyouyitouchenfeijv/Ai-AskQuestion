@@ -163,6 +163,36 @@ AI Service is running!
 - 问答历史记录存储
 - 流式输出
 
+## RAG模式 
+```md
+项目启动
+↓
+Spring 扫描到 KnowledgeBaseConfig
+↓
+创建 embeddingModel
+↓
+创建 embeddingStore
+↓
+创建 embeddingStoreIngestor
+↓
+执行 loadDocuments
+↓
+知识库文本 → 切片 → 向量化 → 存入向量库
+↓
+创建 Assistant（绑定 retriever）
+↓
+接口请求 /api/ai/rag/ask
+↓
+AiQuestionServiceImpl.askQuestionRag()
+↓
+assistant.chat(question)
+↓
+retriever 用问题向量去 embeddingStore 检索相似片段
+↓
+把检索结果拼进 prompt
+↓
+ChatModel 生成答案
+```
 ## License
 
 MIT

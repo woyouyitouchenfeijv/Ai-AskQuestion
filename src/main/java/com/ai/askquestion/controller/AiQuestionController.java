@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/api/ai")
-@RequiredArgsConstructor
 public class AiQuestionController {
 
     @Autowired
@@ -38,13 +37,13 @@ public class AiQuestionController {
      */
     @PostMapping("/rag/ask")
     public ResponseEntity<AskQuestionResponse> ask(@RequestBody AskQuestionRequest questionRequest) {
+        log.info("RAG_API request received: {}", questionRequest.getQuestion());
         AskQuestionResponse response = aiQuestionService.askQuestionRag(questionRequest);
         return ResponseEntity.ok(response);
     }
+
     /**
      * Health check endpoint
-     *
-     * @return status message
      */
     @GetMapping("/health")
     public ResponseEntity<String> health() {
