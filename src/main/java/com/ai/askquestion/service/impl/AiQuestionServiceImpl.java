@@ -1,11 +1,12 @@
 package com.ai.askquestion.service.impl;
 
+import com.ai.askquestion.domain.QuestionRecord;
 import com.ai.askquestion.dto.AskQuestionRequest;
 import com.ai.askquestion.dto.AskQuestionResponse;
+import com.ai.askquestion.mapper.QuestionRecordMapper;
 import com.ai.askquestion.service.AiQuestionService;
 import com.ai.askquestion.service.Assistant;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,16 +20,14 @@ import org.springframework.stereotype.Service;
 public class AiQuestionServiceImpl implements AiQuestionService {
 
     @Autowired
-    ChatLanguageModel chatLanguageModel;//聊天模型
-    @Autowired
-    Assistant assistant;//rag配置，里面加了向量库等等
+    private ChatLanguageModel chatLanguageModel;
 
-    /**
-     * Ask a question to AI
-     *
-     * @param request the question request
-     * @return the AI response
-     */
+    @Autowired
+    private Assistant assistant;
+
+    @Autowired
+    private QuestionRecordMapper questionRecordMapper;
+
     @Override
     public AskQuestionResponse askQuestion(AskQuestionRequest request) {
         log.info("Received question: {}", request.getQuestion());
@@ -41,9 +40,21 @@ public class AiQuestionServiceImpl implements AiQuestionService {
     public AskQuestionResponse askQuestionRag(AskQuestionRequest questionRequest) {
         long startTime = System.currentTimeMillis();
         String chat = assistant.chat(questionRequest.getQuestion());
+        saveRecord(questionRequest.getQuestion(), chat, "RAG");
         long endTime = System.currentTimeMillis();
-        log.info("耗时：{}",(endTime-startTime));
-        return AskQuestionResponse.of(questionRequest.getQuestion(),chat);
+        log.info("RAG request cost: {} ms", (endTime - startTime));
+        return AskQuestionResponse.of(questionRequest.getQuestion(), chat);
     }
 
+    private void saveRecord(String question, String answer, String sourceType) {
+        try {
+            QuestionRecord record = new QuestionRecord();
+            record.setQuestion(question);
+            record.setAnswer(answer);
+            record.setSourceType(sourceType);
+            questionRecordMapper.insert(record);
+        } catch (Exception e) {
+            log.error("Save question record failed, sourceType={}", sourceType, e);
+        }
+    }
 }
