@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ai.askquestion.mapper.QuestionRecordMapper">
+
+    <insert id="insert" parameterType="com.ai.askquestion.domain.QuestionRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO question_record
+        (question, answer, source_type, created_at)
+        VALUES
+        (#{question}, #{answer}, #{sourceType}, NOW())
+    </insert>
+
+</mapper>
