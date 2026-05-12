@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ai.askquestion.mapper.KnowledgeChunkMapper">
+    <resultMap id="KnowledgeChunkResultMap" type="com.ai.askquestion.domain.KnowledgeChunk">
+        <id property="id" column="id"/>
+        <result property="knowledgeBaseId" column="knowledge_base_id"/>
+        <result property="documentId" column="document_id"/>
+        <result property="chunkIndex" column="chunk_index"/>
+        <result property="content" column="content"/>
+        <result property="contentHash" column="content_hash"/>
+        <result property="esDocId" column="es_doc_id"/>
+        <result property="fileName" column="file_name"/>
+        <result property="filePath" column="file_path"/>
+        <result property="tokenCount" column="token_count"/>
+        <result property="version" column="version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <insert id="insert" parameterType="com.ai.askquestion.domain.KnowledgeChunk" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO knowledge_chunk
+        (knowledge_base_id, document_id, chunk_index, content, content_hash, es_doc_id, token_count, version, created_at, updated_at)
+        VALUES
+        (#{knowledgeBaseId}, #{documentId}, #{chunkIndex}, #{content}, #{contentHash}, #{esDocId}, #{tokenCount}, COALESCE(#{version}, 1), NOW(), NOW())
+    </insert>
+    <delete id="deleteByDocumentId">
+        DELETE FROM knowledge_chunk WHERE document_id = #{documentId}
+    </delete>
+    <select id="findByDocumentId" resultMap="KnowledgeChunkResultMap">
+        SELECT kc.*, kd.file_name, kd.file_path
+        FROM knowledge_chunk kc
+        LEFT JOIN knowledge_document kd ON kd.id = kc.document_id
+        WHERE kc.document_id = #{documentId}
+        ORDER BY kc.chunk_index ASC
+    </select>
+    <select id="selectForEsInit" resultMap="KnowledgeChunkResultMap">
+        SELECT kc.id, kc.knowledge_base_id, kc.document_id, kc.chunk_index, kc.content, kc.content_hash,
+               kc.es_doc_id, kd.file_name, kd.file_path, kc.token_count, kc.version, kc.created_at, kc.updated_at
+        FROM knowledge_chunk kc
+        LEFT JOIN knowledge_document kd ON kd.id = kc.document_id
+        WHERE 1 = 1
+          <if test="knowledgeBaseId != null">AND kc.knowledge_base_id = #{knowledgeBaseId}</if>
+        ORDER BY kc.id ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <update id="updateEsDocId">
+        UPDATE knowledge_chunk SET es_doc_id = #{esDocId}, updated_at = NOW() WHERE id = #{id}
+    </update>
+</mapper>

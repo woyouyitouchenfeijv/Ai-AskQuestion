@@ -116,6 +116,85 @@ curl -X POST http://localhost:8080/api/ai/ask \
 }
 ```
 
+### POST /api/ai/rag/ask
+
+4.1 MVP 主链路：
+
+1. 标准化问题并生成 `question_hash`
+2. MySQL 查询 `question_hash + VERIFIED` 答案
+3. 命中后直接返回缓存答案，并增加 `hit_count`
+4. 未命中时检索 ES `knowledge_chunk_index`
+5. 拼接知识库 prompt 调用大模型
+6. 保存 `question_record`，状态为 `DRAFT`
+7. 返回答案和 `recordId`
+
+**请求体：**
+
+```json
+{
+  "question": "如何申请年假？",
+  "knowledgeBaseId": 1
+}
+```
+
+`knowledgeBaseId` 可不传；不传时在全局范围查询。
+
+**响应：**
+
+```json
+{
+  "question": "如何申请年假？",
+  "answer": "根据制度，连续工作满一年后可申请年假。",
+  "recordId": 123,
+  "sourceType": "RAG",
+  "hitType": "RAG",
+  "answerStatus": "DRAFT",
+  "cacheHit": false
+}
+```
+
+### POST /api/ai/question-records/{id}/verify
+
+人工确认答案。确认后，同一个标准化问题下次会命中 MySQL 缓存。
+
+### POST /api/es/knowledge-chunk-index
+
+创建 ES 知识切片索引 `knowledge_chunk_index`。
+
+可选参数：
+
+```text
+recreate=false
+```
+
+示例：
+
+```bash
+curl -X POST "http://localhost:8080/api/es/knowledge-chunk-index?recreate=false"
+```
+
+如果 `recreate=true`，会先删除旧索引再重建，慎用。
+
+### POST /api/es/knowledge-chunk-index/init
+
+创建索引，并从 MySQL `knowledge_chunk` 表全量初始化数据到 ES。
+
+**请求体：**
+
+```json
+{
+  "knowledgeBaseId": 1,
+  "recreate": false,
+  "batchSize": 200
+}
+```
+
+字段说明：
+
+- `knowledgeBaseId`：可选；为空时初始化全部知识库的切片
+- `recreate`：是否重建索引
+- `batchSize`：每批写入 ES 的切片数量，默认 200
+
 ### GET /api/ai/health
 
 健康检查接口
@@ -137,6 +216,10 @@ AI Service is running!
 | ai.openai.model | 使用的模型 | gpt-3.5-turbo |
 | ai.openai.temperature | 温度参数 | 0.7 |
 | ai.openai.max-tokens | 最大 token 数 | 1000 |
+| app.elasticsearch.enabled | 是否启用 ES 知识库检索 | false |
+| app.elasticsearch.base-url | ES 地址 | http://localhost:9200 |
+| app.elasticsearch.knowledge-chunk-index | 知识切片索引名 | knowledge_chunk_index |
+| app.elasticsearch.top-k | 每次召回切片数量 | 3 |
 
 ## 常见问题
 

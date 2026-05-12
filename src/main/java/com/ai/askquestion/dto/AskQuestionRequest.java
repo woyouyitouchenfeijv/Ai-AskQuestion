@@ -14,4 +14,12 @@ public class AskQuestionRequest {
 
     private String question;
 
+    /**
+     * 可选：指定知识库 ID；为空时在全局范围查询。
+     */
+    private Long knowledgeBaseId;
+
+    public AskQuestionRequest(String question) {
+        this.question = question;
+    }
 }

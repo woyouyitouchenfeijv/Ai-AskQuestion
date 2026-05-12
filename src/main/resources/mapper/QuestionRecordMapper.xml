@@ -1,14 +1,82 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper
-        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ai.askquestion.mapper.QuestionRecordMapper">
-
+    <resultMap id="QuestionRecordResultMap" type="com.ai.askquestion.domain.QuestionRecord">
+        <id property="id" column="id"/>
+        <result property="knowledgeBaseId" column="knowledge_base_id"/>
+        <result property="question" column="question"/>
+        <result property="normalizedQuestion" column="normalized_question"/>
+        <result property="questionHash" column="question_hash"/>
+        <result property="answer" column="answer"/>
+        <result property="answerStatus" column="answer_status"/>
+        <result property="sourceType" column="source_type"/>
+        <result property="hitType" column="hit_type"/>
+        <result property="similarityScore" column="similarity_score"/>
+        <result property="sourceChunkIds" column="source_chunk_ids"/>
+        <result property="sourceDocumentIds" column="source_document_ids"/>
+        <result property="esQuestionId" column="es_question_id"/>
+        <result property="modelName" column="model_name"/>
+        <result property="promptTokens" column="prompt_tokens"/>
+        <result property="completionTokens" column="completion_tokens"/>
+        <result property="totalTokens" column="total_tokens"/>
+        <result property="costTimeMs" column="cost_time_ms"/>
+        <result property="hitCount" column="hit_count"/>
+        <result property="usefulCount" column="useful_count"/>
+        <result property="uselessCount" column="useless_count"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
     <insert id="insert" parameterType="com.ai.askquestion.domain.QuestionRecord" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO question_record
-        (question, answer, source_type, created_at)
+        (knowledge_base_id, question, normalized_question, question_hash, answer, answer_status,
+         source_type, hit_type, similarity_score, source_chunk_ids, source_document_ids, es_question_id,
+         model_name, prompt_tokens, completion_tokens, total_tokens, cost_time_ms,
+         hit_count, useful_count, useless_count, created_at, updated_at)
         VALUES
-        (#{question}, #{answer}, #{sourceType}, NOW())
+        (#{knowledgeBaseId}, #{question}, #{normalizedQuestion}, #{questionHash}, #{answer}, COALESCE(#{answerStatus}, 'DRAFT'),
+         #{sourceType}, #{hitType}, #{similarityScore}, #{sourceChunkIds}, #{sourceDocumentIds}, #{esQuestionId},
+         #{modelName}, #{promptTokens}, #{completionTokens}, #{totalTokens}, #{costTimeMs},
+         0, 0, 0, NOW(), NOW())
     </insert>
-
+    <update id="updateStatus">
+        UPDATE question_record SET answer_status = #{answerStatus}, updated_at = NOW() WHERE id = #{id}
+    </update>
+    <update id="updateAnswer">
+        UPDATE question_record SET answer = #{answer}, answer_status = #{answerStatus}, updated_at = NOW() WHERE id = #{id}
+    </update>
+    <select id="findById" resultMap="QuestionRecordResultMap">
+        SELECT * FROM question_record WHERE id = #{id}
+    </select>
+    <select id="findVerifiedByQuestionHash" resultMap="QuestionRecordResultMap">
+        SELECT * FROM question_record
+        WHERE question_hash = #{questionHash} AND answer_status = 'VERIFIED'
+          <if test="knowledgeBaseId != null">AND knowledge_base_id = #{knowledgeBaseId}</if>
+        ORDER BY updated_at DESC, id DESC LIMIT 1
+    </select>
+    <select id="findLatestVerifiedByQuestionHash" resultMap="QuestionRecordResultMap">
+        SELECT * FROM question_record
+        WHERE question_hash = #{questionHash} AND answer_status = 'VERIFIED'
+          <if test="knowledgeBaseId != null">AND knowledge_base_id = #{knowledgeBaseId}</if>
+        ORDER BY updated_at DESC, id DESC LIMIT 1
+    </select>
+    <select id="findByIds" resultMap="QuestionRecordResultMap">
+        SELECT * FROM question_record WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+    <update id="increaseHitCount">
+        UPDATE question_record SET hit_count = hit_count + 1, updated_at = NOW() WHERE id = #{id}
+    </update>
+    <update id="verify">
+        UPDATE question_record SET answer_status = 'VERIFIED', updated_at = NOW() WHERE id = #{id}
+    </update>
+    <update id="disable">
+        UPDATE question_record SET answer_status = 'DISABLED', updated_at = NOW() WHERE id = #{id}
+    </update>
+    <update id="markStaleByDocumentId">
+        UPDATE question_record SET answer_status = 'STALE', updated_at = NOW()
+        WHERE answer_status = 'VERIFIED' AND FIND_IN_SET(#{documentId}, source_document_ids)
+    </update>
+    <update id="updateEsQuestionId">
+        UPDATE question_record SET es_question_id = #{esQuestionId}, updated_at = NOW() WHERE id = #{id}
+    </update>
 </mapper>

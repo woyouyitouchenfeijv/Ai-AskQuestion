@@ -3,8 +3,6 @@ package com.ai.askquestion;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import java.util.Arrays;
-
 /**
  * Spring Boot Application Entry Point
  */

@@ -5,9 +5,9 @@ spring:
   application:
     name: ai-askquestion
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/ai_askquestion?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: ai_askquestion
-    password: ai_askquestion
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/ai_askquestion?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 mybatis:
@@ -16,17 +16,36 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
 
-# AI Configuration
 ai:
-  # OpenAI API Configuration
   openai:
-    #付费的
-    api-key: api-key
-    model-name: DeepSeek-R1-0528-Qwen3-8B
-    temperature: 0.6
-    max-tokens: 1000
-    timeout: 60
-    baseUrl: https://open.bigmodel.cn/api/paas/v4/
+    api-key: ${AI_OPENAI_API_KEY:api-key}
+    model-name: ${AI_OPENAI_MODEL_NAME:DeepSeek-R1-0528-Qwen3-8B}
+    temperature: ${AI_OPENAI_TEMPERATURE:0.6}
+    max-tokens: ${AI_OPENAI_MAX_TOKENS:1000}
+    timeout: ${AI_OPENAI_TIMEOUT:60}
+    baseUrl: ${AI_OPENAI_BASE_URL:https://open.bigmodel.cn/api/paas/v4/}
+
+knowledge:
+  base-path: ${KNOWLEDGE_BASE_PATH:src/main/resources/knowledge-base}
+  chunk-size: ${KNOWLEDGE_CHUNK_SIZE:500}
+  chunk-overlap: ${KNOWLEDGE_CHUNK_OVERLAP:100}
+
+app:
+  elasticsearch:
+    enabled: ${APP_ELASTICSEARCH_ENABLED:false}
+    base-url: ${APP_ELASTICSEARCH_BASE_URL:http://localhost:9200}
+    knowledge-chunk-index: ${APP_ELASTICSEARCH_KNOWLEDGE_CHUNK_INDEX:knowledge_chunk_index}
+    qa-question-index: ${APP_ELASTICSEARCH_QA_QUESTION_INDEX:qa_question_index}
+    top-k: ${APP_ELASTICSEARCH_TOP_K:5}
+    min-score: ${APP_ELASTICSEARCH_MIN_SCORE:0.0}
+
+qa:
+  cache:
+    exact-enabled: true
+    similar-enabled: false
+    exact-threshold: 0.98
+    verified-similar-threshold: 0.88
+    reference-similar-threshold: 0.75
 
 logging:
   level:
