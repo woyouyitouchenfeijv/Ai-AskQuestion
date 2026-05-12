@@ -1,11 +1,20 @@
-# Server Configuration
 server:
   port: 8080
 
-# Application Configuration
 spring:
   application:
-    name:
+    name: ai-askquestion
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/ai_askquestion?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ai_askquestion
+    password: ai_askquestion
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  type-aliases-package: com.ai.askquestion.domain
+  configuration:
+    map-underscore-to-camel-case: true
 
 # AI Configuration
 ai:
@@ -18,7 +27,7 @@ ai:
     max-tokens: 1000
     timeout: 60
     baseUrl: https://open.bigmodel.cn/api/paas/v4/
-# Logging Configuration
+
 logging:
   level:
     root: INFO
