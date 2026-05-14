@@ -43,6 +43,13 @@
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
 
+        <!-- H2 (本地免安装数据库，方便开发启动) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- Elasticsearch -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

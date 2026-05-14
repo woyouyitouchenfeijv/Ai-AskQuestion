@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    # 正式环境：MySQL 持久化存储
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/ai_askquestion?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:123456}
+    driver-class-name: ${MYSQL_DRIVER:com.mysql.cj.jdbc.Driver}
+
+app:
+  elasticsearch:
+    # 正式环境启用 ES 作为检索层
+    enabled: ${APP_ELASTICSEARCH_ENABLED:true}
+    base-url: ${APP_ELASTICSEARCH_BASE_URL:http://localhost:9200}
+    knowledge-chunk-index: ${APP_ELASTICSEARCH_KNOWLEDGE_CHUNK_INDEX:knowledge_chunk_index}
+    qa-question-index: ${APP_ELASTICSEARCH_QA_QUESTION_INDEX:qa_question_index}
+    top-k: ${APP_ELASTICSEARCH_TOP_K:5}
+    min-score: ${APP_ELASTICSEARCH_MIN_SCORE:0.0}

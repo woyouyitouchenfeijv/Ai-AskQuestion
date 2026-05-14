@@ -4,11 +4,8 @@ server:
 spring:
   application:
     name: ai-askquestion
-  datasource:
-    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/ai_askquestion?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:root}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:memory}
 
 mybatis:
   mapper-locations: classpath*:mapper/*.xml
@@ -24,20 +21,12 @@ ai:
     max-tokens: ${AI_OPENAI_MAX_TOKENS:1000}
     timeout: ${AI_OPENAI_TIMEOUT:60}
     baseUrl: ${AI_OPENAI_BASE_URL:https://open.bigmodel.cn/api/paas/v4/}
+    embedding-model-name: ${AI_OPENAI_EMBEDDING_MODEL_NAME:text-embedding-3-small}
 
 knowledge:
   base-path: ${KNOWLEDGE_BASE_PATH:src/main/resources/knowledge-base}
   chunk-size: ${KNOWLEDGE_CHUNK_SIZE:500}
   chunk-overlap: ${KNOWLEDGE_CHUNK_OVERLAP:100}
-
-app:
-  elasticsearch:
-    enabled: ${APP_ELASTICSEARCH_ENABLED:false}
-    base-url: ${APP_ELASTICSEARCH_BASE_URL:http://localhost:9200}
-    knowledge-chunk-index: ${APP_ELASTICSEARCH_KNOWLEDGE_CHUNK_INDEX:knowledge_chunk_index}
-    qa-question-index: ${APP_ELASTICSEARCH_QA_QUESTION_INDEX:qa_question_index}
-    top-k: ${APP_ELASTICSEARCH_TOP_K:5}
-    min-score: ${APP_ELASTICSEARCH_MIN_SCORE:0.0}
 
 qa:
   cache:

@@ -1,21 +1,41 @@
 package com.ai.askquestion.config;
 
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.allminilml6v2.AllMiniLmL6V2EmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
-import dev.langchain4j.data.document.splitter.DocumentSplitters;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.Duration;
 
 @Configuration
 public class KnowledgeBaseConfig {
 
+    @Value("${ai.openai.api-key}")
+    private String apiKey;
+
+    @Value("${ai.openai.baseUrl}")
+    private String baseUrl;
+
+    @Value("${ai.openai.timeout:60}")
+    private Long timeout;
+
+    @Value("${ai.openai.embedding-model-name:text-embedding-3-small}")
+    private String embeddingModelName;
+
     @Bean
     public EmbeddingModel embeddingModel() {
-        return new AllMiniLmL6V2EmbeddingModel();
+        return OpenAiEmbeddingModel.builder()
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(embeddingModelName)
+                .timeout(Duration.ofSeconds(timeout))
+                .build();
     }
 
     /**

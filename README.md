@@ -63,7 +63,27 @@ mvn spring-boot:run
 
 ```bash
 mvn clean package
-java -jar target/ai-askquestion-java-1.0.0.jar
+java -jar target/ai-askquestion-1.0.0.jar
+```
+
+### 2.1 存储模式切换（已支持）
+
+- `memory`（默认，测试/开发）：H2 内存库 + ES 关闭
+- `prod`（生产）：MySQL + ES
+
+切换方式：
+
+```bash
+# 默认就是 memory，可显式指定
+SPRING_PROFILES_ACTIVE=memory mvn spring-boot:run
+
+# 生产模式（需提前准备 MySQL、ES）
+SPRING_PROFILES_ACTIVE=prod \
+MYSQL_URL='jdbc:mysql://127.0.0.1:3306/ai_askquestion?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true' \
+MYSQL_USERNAME='root' \
+MYSQL_PASSWORD='123456' \
+APP_ELASTICSEARCH_BASE_URL='http://127.0.0.1:9200' \
+mvn spring-boot:run
 ```
 
 ### 3. 测试接口

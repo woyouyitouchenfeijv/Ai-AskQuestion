@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    # 测试/开发环境：内存数据库，启动时自动建表
+    url: jdbc:h2:mem:ai_askquestion;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=RUNSCRIPT FROM 'classpath:sql/schema-h2.sql'
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+app:
+  elasticsearch:
+    enabled: false
+    base-url: ${APP_ELASTICSEARCH_BASE_URL:http://localhost:9200}
+    knowledge-chunk-index: ${APP_ELASTICSEARCH_KNOWLEDGE_CHUNK_INDEX:knowledge_chunk_index}
+    qa-question-index: ${APP_ELASTICSEARCH_QA_QUESTION_INDEX:qa_question_index}
+    top-k: ${APP_ELASTICSEARCH_TOP_K:5}
+    min-score: ${APP_ELASTICSEARCH_MIN_SCORE:0.0}

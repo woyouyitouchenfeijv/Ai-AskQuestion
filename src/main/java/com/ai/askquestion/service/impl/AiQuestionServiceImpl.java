@@ -14,8 +14,8 @@ import com.ai.askquestion.service.KnowledgeChunkSearchService;
 import com.ai.askquestion.service.KnowledgePromptBuilder;
 import com.ai.askquestion.service.QuestionNormalizer;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AiQuestionServiceImpl implements AiQuestionService {
     private final ChatLanguageModel chatLanguageModel;
     private final QuestionNormalizer questionNormalizer;
@@ -36,6 +35,23 @@ public class AiQuestionServiceImpl implements AiQuestionService {
     private final KnowledgePromptBuilder knowledgePromptBuilder;
     private final ElasticsearchIndexService elasticsearchIndexService;
     private final QuestionFeedbackMapper questionFeedbackMapper;
+
+    @Autowired
+    public AiQuestionServiceImpl(ChatLanguageModel chatLanguageModel,
+                                 QuestionNormalizer questionNormalizer,
+                                 KnowledgeChunkSearchService knowledgeChunkSearchService,
+                                 QuestionRecordMapper questionRecordMapper,
+                                 KnowledgePromptBuilder knowledgePromptBuilder,
+                                 ElasticsearchIndexService elasticsearchIndexService,
+                                 QuestionFeedbackMapper questionFeedbackMapper) {
+        this.chatLanguageModel = chatLanguageModel;
+        this.questionNormalizer = questionNormalizer;
+        this.knowledgeChunkSearchService = knowledgeChunkSearchService;
+        this.questionRecordMapper = questionRecordMapper;
+        this.knowledgePromptBuilder = knowledgePromptBuilder;
+        this.elasticsearchIndexService = elasticsearchIndexService;
+        this.questionFeedbackMapper = questionFeedbackMapper;
+    }
 
     /** 测试专用构造器：兼容现有单测。 */
     public AiQuestionServiceImpl(ChatLanguageModel chatLanguageModel,
