@@ -57,6 +57,7 @@ public class KnowledgeBaseConfig {
     }
 
     /**
-     * 已移除启动时自动 loadDocuments：改为 POST /api/knowledge/{knowledgeBaseId}/ingest 手动触发。
+     * 说明：memory 模式下会在应用启动时自动执行知识入库（见 MemoryKnowledgeBootstrap）。
+     * 生产模式保持手动触发：POST /api/knowledge/{knowledgeBaseId}/ingest。
      */
 }

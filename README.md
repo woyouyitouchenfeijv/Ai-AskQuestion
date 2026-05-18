@@ -69,6 +69,8 @@ java -jar target/ai-askquestion-1.0.0.jar
 ### 2.1 存储模式切换（已支持）
 
 - `memory`（默认，测试/开发）：H2 内存库 + ES 关闭
+  - 启动时自动扫描 `resources/knowledge-base` 并入库（可关闭）
+  - 文档解析优先走 Apache Tika，支持常见附件格式（txt/md/pdf/doc/docx/xls/xlsx/ppt/pptx 等）
 - `prod`（生产）：MySQL + ES
 
 切换方式：
@@ -76,6 +78,11 @@ java -jar target/ai-askquestion-1.0.0.jar
 ```bash
 # 默认就是 memory，可显式指定
 SPRING_PROFILES_ACTIVE=memory mvn spring-boot:run
+
+# 如需关闭 memory 启动自动入库
+SPRING_PROFILES_ACTIVE=memory \
+KNOWLEDGE_AUTO_INGEST_ON_STARTUP=false \
+mvn spring-boot:run
 
 # 生产模式（需提前准备 MySQL、ES）
 SPRING_PROFILES_ACTIVE=prod \

@@ -6,6 +6,12 @@ spring:
     password:
     driver-class-name: org.h2.Driver
 
+knowledge:
+  base-path: classpath:knowledge-base
+  auto-ingest-on-startup: true
+  default-knowledge-base-id: 1
+  default-knowledge-base-name: 默认知识库
+
 app:
   elasticsearch:
     enabled: false
