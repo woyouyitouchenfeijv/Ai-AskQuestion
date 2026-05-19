@@ -16,6 +16,8 @@ public interface QuestionRecordMapper {
                                               @Param("questionHash") String questionHash);
     QuestionRecord findLatestVerifiedByQuestionHash(@Param("knowledgeBaseId") Long knowledgeBaseId,
                                                     @Param("questionHash") String questionHash);
+    List<QuestionRecord> findLatestVerifiedCandidates(@Param("knowledgeBaseId") Long knowledgeBaseId,
+                                                      @Param("limit") int limit);
     List<QuestionRecord> findByIds(@Param("ids") List<Long> ids);
     int increaseHitCount(@Param("id") Long id);
     int verify(@Param("id") Long id);

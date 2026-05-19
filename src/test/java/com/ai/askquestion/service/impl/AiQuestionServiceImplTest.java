@@ -6,11 +6,14 @@ import com.ai.askquestion.dto.AskQuestionResponse;
 import com.ai.askquestion.mapper.QuestionRecordMapper;
 import com.ai.askquestion.service.KnowledgeChunkSearchResult;
 import com.ai.askquestion.service.KnowledgeChunkSearchService;
+import com.ai.askquestion.service.QuestionCacheHit;
+import com.ai.askquestion.service.QuestionCacheService;
 import com.ai.askquestion.service.QuestionNormalizer;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,11 +30,13 @@ class AiQuestionServiceImplTest {
     private final ChatLanguageModel chatLanguageModel = mock(ChatLanguageModel.class);
     private final KnowledgeChunkSearchService knowledgeChunkSearchService = mock(KnowledgeChunkSearchService.class);
     private final QuestionRecordMapper questionRecordMapper = mock(QuestionRecordMapper.class);
+    private final QuestionCacheService questionCacheService = mock(QuestionCacheService.class);
     private final AiQuestionServiceImpl service = new AiQuestionServiceImpl(
             chatLanguageModel,
             new QuestionNormalizer(),
             knowledgeChunkSearchService,
-            questionRecordMapper
+            questionRecordMapper,
+            questionCacheService
     );
 
     @Test
@@ -43,7 +48,7 @@ class AiQuestionServiceImplTest {
         cached.setSourceType("RAG");
         cached.setAnswerStatus("VERIFIED");
         cached.setHitType("EXACT");
-        when(questionRecordMapper.findLatestVerifiedByQuestionHash(eq(null), any())).thenReturn(cached);
+        when(questionCacheService.findUsableAnswer(eq(null), eq("  spring boot是什么?"), any())).thenReturn(Optional.of(new QuestionCacheHit(cached, "EXACT", null)));
 
         AskQuestionResponse response = service.askQuestionRag(new AskQuestionRequest("  spring boot是什么?"));
 
@@ -58,8 +63,29 @@ class AiQuestionServiceImplTest {
     }
 
     @Test
+    void askQuestionRagShouldReturnSimilarCacheWhenVectorMatched() {
+        QuestionRecord cached = new QuestionRecord();
+        cached.setId(20L);
+        cached.setQuestion("12345的公司在哪！");
+        cached.setAnswer("北京市海淀区55号院");
+        cached.setAnswerStatus("VERIFIED");
+        when(questionCacheService.findUsableAnswer(eq(1L), eq("12345的公司位置！"), any()))
+                .thenReturn(Optional.of(new QuestionCacheHit(cached, "SIMILAR", 0.93D)));
+
+        AskQuestionResponse response = service.askQuestionRag(new AskQuestionRequest("12345的公司位置！", 1L));
+
+        assertEquals("北京市海淀区55号院", response.getAnswer());
+        assertEquals("CACHE", response.getSourceType());
+        assertEquals("SIMILAR", response.getHitType());
+        assertEquals("0.93", response.getSimilarityScore().toPlainString());
+        assertTrue(response.isCacheHit());
+        verify(knowledgeChunkSearchService, never()).search(any(), any());
+        verify(chatLanguageModel, never()).generate(any(String.class));
+    }
+
+    @Test
     void askQuestionRagShouldSearchKnowledgeGenerateDraftAndSaveRecordWhenCacheMissed() {
-        when(questionRecordMapper.findLatestVerifiedByQuestionHash(eq(null), any())).thenReturn(null);
+        when(questionCacheService.findUsableAnswer(eq(null), eq("如何申请年假？"), any())).thenReturn(Optional.empty());
         when(knowledgeChunkSearchService.search(null, "如何申请年假？")).thenReturn(List.of(
                 new KnowledgeChunkSearchResult(101L, 201L, "员工连续工作满一年后可申请年假。", 8.5D)
         ));

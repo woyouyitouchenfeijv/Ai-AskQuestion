@@ -6,6 +6,6 @@ import com.ai.askquestion.dto.NormalizedQuestion;
 import java.util.Optional;
 
 public interface QuestionCacheService {
-    Optional<QuestionRecord> findUsableAnswer(Long knowledgeBaseId, String question, NormalizedQuestion normalizedQuestion);
+    Optional<QuestionCacheHit> findUsableAnswer(Long knowledgeBaseId, String question, NormalizedQuestion normalizedQuestion);
     void indexQuestion(QuestionRecord record);
 }

@@ -12,9 +12,10 @@ import com.ai.askquestion.service.ElasticsearchIndexService;
 import com.ai.askquestion.service.KnowledgeChunkSearchResult;
 import com.ai.askquestion.service.KnowledgeChunkSearchService;
 import com.ai.askquestion.service.KnowledgePromptBuilder;
+import com.ai.askquestion.service.QuestionCacheHit;
+import com.ai.askquestion.service.QuestionCacheService;
 import com.ai.askquestion.service.QuestionNormalizer;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -23,15 +24,16 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 public class AiQuestionServiceImpl implements AiQuestionService {
     private final ChatLanguageModel chatLanguageModel;
     private final QuestionNormalizer questionNormalizer;
     private final KnowledgeChunkSearchService knowledgeChunkSearchService;
     private final QuestionRecordMapper questionRecordMapper;
+    private final QuestionCacheService questionCacheService;
     private final KnowledgePromptBuilder knowledgePromptBuilder;
     private final ElasticsearchIndexService elasticsearchIndexService;
     private final QuestionFeedbackMapper questionFeedbackMapper;
@@ -41,6 +43,7 @@ public class AiQuestionServiceImpl implements AiQuestionService {
                                  QuestionNormalizer questionNormalizer,
                                  KnowledgeChunkSearchService knowledgeChunkSearchService,
                                  QuestionRecordMapper questionRecordMapper,
+                                 QuestionCacheService questionCacheService,
                                  KnowledgePromptBuilder knowledgePromptBuilder,
                                  ElasticsearchIndexService elasticsearchIndexService,
                                  QuestionFeedbackMapper questionFeedbackMapper) {
@@ -48,23 +51,33 @@ public class AiQuestionServiceImpl implements AiQuestionService {
         this.questionNormalizer = questionNormalizer;
         this.knowledgeChunkSearchService = knowledgeChunkSearchService;
         this.questionRecordMapper = questionRecordMapper;
+        this.questionCacheService = questionCacheService;
         this.knowledgePromptBuilder = knowledgePromptBuilder;
         this.elasticsearchIndexService = elasticsearchIndexService;
         this.questionFeedbackMapper = questionFeedbackMapper;
     }
 
-    /** 测试专用构造器：兼容现有单测。 */
+    /** 测试专用构造器：允许注入缓存服务。 */
+    public AiQuestionServiceImpl(ChatLanguageModel chatLanguageModel,
+                                 QuestionNormalizer questionNormalizer,
+                                 KnowledgeChunkSearchService knowledgeChunkSearchService,
+                                 QuestionRecordMapper questionRecordMapper,
+                                 QuestionCacheService questionCacheService) {
+        this(chatLanguageModel, questionNormalizer, knowledgeChunkSearchService, questionRecordMapper,
+                questionCacheService, new KnowledgePromptBuilder(), null, null);
+    }
+
+    /** 兼容现有单测/旧调用方的构造器：仅提供精确命中缓存。 */
     public AiQuestionServiceImpl(ChatLanguageModel chatLanguageModel,
                                  QuestionNormalizer questionNormalizer,
                                  KnowledgeChunkSearchService knowledgeChunkSearchService,
                                  QuestionRecordMapper questionRecordMapper) {
         this(chatLanguageModel, questionNormalizer, knowledgeChunkSearchService, questionRecordMapper,
-                new KnowledgePromptBuilder(), null, null);
+                new ExactOnlyQuestionCacheService(questionRecordMapper), new KnowledgePromptBuilder(), null, null);
     }
 
     @Override
     public AskQuestionResponse askQuestion(AskQuestionRequest request) {
-        log.info("Received question: {}", request.getQuestion());
         String answer = chatLanguageModel.generate(request.getQuestion());
         return AskQuestionResponse.of(request.getQuestion(), answer);
     }
@@ -76,15 +89,13 @@ public class AiQuestionServiceImpl implements AiQuestionService {
         NormalizedQuestion normalized = normalize(question);
         Long knowledgeBaseId = request.getKnowledgeBaseId();
 
-        QuestionRecord cached = questionRecordMapper.findVerifiedByQuestionHash(knowledgeBaseId, normalized.getQuestionHash());
-        if (cached == null) {
-            // 兼容旧 mapper 方法名和现有单测 mock。
-            cached = questionRecordMapper.findLatestVerifiedByQuestionHash(knowledgeBaseId, normalized.getQuestionHash());
-        }
-        if (cached != null) {
+        Optional<QuestionCacheHit> cachedHit = questionCacheService == null
+                ? Optional.empty()
+                : questionCacheService.findUsableAnswer(knowledgeBaseId, question, normalized);
+        if (cachedHit.isPresent()) {
+            QuestionRecord cached = cachedHit.get().getRecord();
             questionRecordMapper.increaseHitCount(cached.getId());
-            log.info("RAG cache hit, recordId={}, questionHash={}", cached.getId(), normalized.getQuestionHash());
-            return AskQuestionResponse.cacheHit(question, cached.getAnswer(), cached.getId());
+            return toCacheResponse(question, cached, cachedHit.get());
         }
 
         List<KnowledgeChunkSearchResult> chunks = knowledgeChunkSearchService.search(knowledgeBaseId, question);
@@ -97,7 +108,6 @@ public class AiQuestionServiceImpl implements AiQuestionService {
         if (elasticsearchIndexService != null) {
             elasticsearchIndexService.indexQuestion(record);
         }
-        log.info("RAG generated draft answer, recordId={}, chunks={}, cost={} ms", record.getId(), chunks.size(), costTimeMs);
         return toGeneratedResponse(record, chunks);
     }
 
@@ -134,6 +144,25 @@ public class AiQuestionServiceImpl implements AiQuestionService {
 
     private NormalizedQuestion normalize(String question) {
         return new NormalizedQuestion(question, questionNormalizer.normalize(question), questionNormalizer.hash(question));
+    }
+
+    private AskQuestionResponse toCacheResponse(String requestedQuestion, QuestionRecord cached, QuestionCacheHit cacheHit) {
+        BigDecimal similarityScore = cacheHit.getSimilarityScore() == null
+                ? null
+                : BigDecimal.valueOf(cacheHit.getSimilarityScore());
+        return new AskQuestionResponse(
+                cached.getId(),
+                requestedQuestion,
+                cached.getAnswer(),
+                "CACHE",
+                cacheHit.getHitType(),
+                similarityScore,
+                List.of(),
+                List.of(),
+                0L,
+                "VERIFIED",
+                true
+        );
     }
 
     private QuestionRecord buildDraftRecord(AskQuestionRequest request,
@@ -187,6 +216,25 @@ public class AiQuestionServiceImpl implements AiQuestionService {
         QuestionRecord record = questionRecordMapper.findById(questionRecordId);
         if (record != null) {
             elasticsearchIndexService.indexQuestion(record);
+        }
+    }
+
+    private static class ExactOnlyQuestionCacheService implements QuestionCacheService {
+        private final QuestionRecordMapper questionRecordMapper;
+
+        private ExactOnlyQuestionCacheService(QuestionRecordMapper questionRecordMapper) {
+            this.questionRecordMapper = questionRecordMapper;
+        }
+
+        @Override
+        public Optional<QuestionCacheHit> findUsableAnswer(Long knowledgeBaseId, String question, NormalizedQuestion normalizedQuestion) {
+            QuestionRecord exact = questionRecordMapper.findVerifiedByQuestionHash(knowledgeBaseId, normalizedQuestion.getQuestionHash());
+            return exact == null ? Optional.empty() : Optional.of(new QuestionCacheHit(exact, "EXACT", null));
+        }
+
+        @Override
+        public void indexQuestion(QuestionRecord record) {
+            // no-op
         }
     }
 }

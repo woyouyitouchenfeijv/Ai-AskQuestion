@@ -59,6 +59,13 @@
           <if test="knowledgeBaseId != null">AND knowledge_base_id = #{knowledgeBaseId}</if>
         ORDER BY updated_at DESC, id DESC LIMIT 1
     </select>
+    <select id="findLatestVerifiedCandidates" resultMap="QuestionRecordResultMap">
+        SELECT * FROM question_record
+        WHERE answer_status = 'VERIFIED'
+          <if test="knowledgeBaseId != null">AND knowledge_base_id = #{knowledgeBaseId}</if>
+        ORDER BY useful_count DESC, hit_count DESC, updated_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
     <select id="findByIds" resultMap="QuestionRecordResultMap">
         SELECT * FROM question_record WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>

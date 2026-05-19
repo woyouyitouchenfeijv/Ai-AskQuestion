@@ -31,10 +31,11 @@ knowledge:
 qa:
   cache:
     exact-enabled: true
-    similar-enabled: false
+    similar-enabled: true
     exact-threshold: 0.98
     verified-similar-threshold: 0.88
     reference-similar-threshold: 0.75
+    candidate-limit: 200
 
 logging:
   level:
