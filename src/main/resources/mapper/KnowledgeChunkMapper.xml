@@ -32,6 +32,15 @@
         WHERE kc.document_id = #{documentId}
         ORDER BY kc.chunk_index ASC
     </select>
+    <select id="findByKnowledgeBaseId" resultMap="KnowledgeChunkResultMap">
+        SELECT kc.id, kc.knowledge_base_id, kc.document_id, kc.chunk_index, kc.content, kc.content_hash,
+               kc.es_doc_id, kd.file_name, kd.file_path, kc.token_count, kc.version, kc.created_at, kc.updated_at
+        FROM knowledge_chunk kc
+        LEFT JOIN knowledge_document kd ON kd.id = kc.document_id
+        WHERE 1 = 1
+          <if test="knowledgeBaseId != null">AND kc.knowledge_base_id = #{knowledgeBaseId}</if>
+        ORDER BY kc.id ASC
+    </select>
     <select id="selectForEsInit" resultMap="KnowledgeChunkResultMap">
         SELECT kc.id, kc.knowledge_base_id, kc.document_id, kc.chunk_index, kc.content, kc.content_hash,
                kc.es_doc_id, kd.file_name, kd.file_path, kc.token_count, kc.version, kc.created_at, kc.updated_at

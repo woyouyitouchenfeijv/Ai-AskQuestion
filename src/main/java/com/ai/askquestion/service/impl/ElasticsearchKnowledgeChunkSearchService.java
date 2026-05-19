@@ -1,6 +1,8 @@
 package com.ai.askquestion.service.impl;
 
 import com.ai.askquestion.config.ElasticsearchProperties;
+import com.ai.askquestion.domain.KnowledgeChunk;
+import com.ai.askquestion.mapper.KnowledgeChunkMapper;
 import com.ai.askquestion.service.KnowledgeChunkSearchResult;
 import com.ai.askquestion.service.KnowledgeChunkSearchService;
 import lombok.extern.slf4j.Slf4j;
@@ -8,12 +10,17 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -21,18 +28,21 @@ public class ElasticsearchKnowledgeChunkSearchService implements KnowledgeChunkS
 
     private final RestTemplate restTemplate;
     private final ElasticsearchProperties properties;
+    private final KnowledgeChunkMapper knowledgeChunkMapper;
 
-    public ElasticsearchKnowledgeChunkSearchService(ElasticsearchProperties properties) {
+    public ElasticsearchKnowledgeChunkSearchService(ElasticsearchProperties properties,
+                                                    KnowledgeChunkMapper knowledgeChunkMapper) {
         this.restTemplate = new RestTemplate();
         this.properties = properties;
+        this.knowledgeChunkMapper = knowledgeChunkMapper;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public List<KnowledgeChunkSearchResult> search(Long knowledgeBaseId, String question) {
         if (!properties.isEnabled()) {
-            log.debug("Elasticsearch search disabled, skip knowledge_chunk_index search");
-            return List.of();
+            log.debug("Elasticsearch search disabled, fallback to database chunk search");
+            return searchFromDatabase(knowledgeBaseId, question);
         }
 
         try {
@@ -43,9 +53,79 @@ public class ElasticsearchKnowledgeChunkSearchService implements KnowledgeChunkS
             Map<String, Object> response = restTemplate.postForObject(url, new HttpEntity<>(body, headers), Map.class);
             return parseResults(response);
         } catch (Exception e) {
-            log.error("Search knowledge_chunk_index failed, knowledgeBaseId={}, question={}", knowledgeBaseId, question, e);
+            log.error("Search knowledge_chunk_index failed, knowledgeBaseId={}, question={}, fallback to database chunk search",
+                    knowledgeBaseId, question, e);
+            return searchFromDatabase(knowledgeBaseId, question);
+        }
+    }
+
+    private List<KnowledgeChunkSearchResult> searchFromDatabase(Long knowledgeBaseId, String question) {
+        List<KnowledgeChunk> chunks = knowledgeChunkMapper.findByKnowledgeBaseId(knowledgeBaseId);
+        if (chunks == null || chunks.isEmpty() || !StringUtils.hasText(question)) {
             return List.of();
         }
+
+        List<String> searchTerms = buildSearchTerms(question);
+        if (searchTerms.isEmpty()) {
+            return List.of();
+        }
+
+        return chunks.stream()
+                .map(chunk -> toResult(chunk, computeScore(chunk.getContent(), searchTerms)))
+                .filter(result -> result.getScore() != null && result.getScore() > 0)
+                .sorted(Comparator.comparing(KnowledgeChunkSearchResult::getScore, Comparator.reverseOrder())
+                        .thenComparing(KnowledgeChunkSearchResult::getChunkId, Comparator.nullsLast(Long::compareTo)))
+                .limit(Math.max(properties.getTopK(), 1))
+                .toList();
+    }
+
+    private KnowledgeChunkSearchResult toResult(KnowledgeChunk chunk, double score) {
+        return new KnowledgeChunkSearchResult(chunk.getId(), chunk.getDocumentId(), chunk.getContent(), score);
+    }
+
+    private double computeScore(String content, List<String> searchTerms) {
+        if (!StringUtils.hasText(content)) {
+            return 0D;
+        }
+        String normalizedContent = normalizeForSearch(content);
+        double score = 0D;
+        for (String term : searchTerms) {
+            if (normalizedContent.contains(term)) {
+                score += Math.max(1D, term.length());
+            }
+        }
+        return score;
+    }
+
+    private List<String> buildSearchTerms(String question) {
+        String normalized = normalizeForSearch(question);
+        if (!StringUtils.hasText(normalized)) {
+            return List.of();
+        }
+
+        Set<String> terms = new LinkedHashSet<>();
+        if (normalized.length() >= 2) {
+            for (int i = 0; i < normalized.length() - 1; i++) {
+                terms.add(normalized.substring(i, i + 2));
+            }
+        }
+        if (normalized.length() <= 12) {
+            terms.add(normalized);
+        }
+        for (String token : normalized.split("[^a-z0-9\\u4e00-\\u9fa5]+")) {
+            if (token.length() >= 2) {
+                terms.add(token);
+            }
+        }
+        return new ArrayList<>(terms);
+    }
+
+    private String normalizeForSearch(String text) {
+        return text == null ? "" : text
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[\\p{Punct}\\p{IsPunctuation}\\s]+", "")
+                .replace("在哪儿", "在哪")
+                .trim();
     }
 
     private Map<String, Object> buildSearchBody(Long knowledgeBaseId, String question) {
